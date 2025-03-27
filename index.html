@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>JARVIS IMSS</title>
+    <style>
+        body {
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        /* Contenedor principal simplificado */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        /* Bola de JARVIS - Protagonista */
+        .asistente {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00f, #000);
+            box-shadow: 0 0 40px #00f;
+            margin: 20px auto;
+            position: relative;
+            transition: all 0.3s ease;
+            animation: flotar 3s infinite alternate ease-in-out;
+            z-index: 10;
+        }
+        
+        /* Efectos de habla */
+        .asistente.hablando {
+            animation: hablar 0.8s infinite alternate ease-in-out, 
+                       flotar 3s infinite alternate ease-in-out;
+            box-shadow: 0 0 60px #00f, 
+                        0 0 120px #0af;
+        }
+        
+        @keyframes flotar {
+            from { transform: translateY(0) scale(1); }
+            to { transform: translateY(-15px) scale(1.03); }
+        }
+        
+        @keyframes hablar {
+            0% { border-radius: 50% 50% 40% 60% / 60% 50% 50% 40%; transform: scale(1); }
+            50% { border-radius: 45% 55% 55% 45% / 55% 45% 55% 45%; transform: scale(1.1); }
+            100% { border-radius: 60% 40% 40% 60% / 60% 45% 55% 40%; transform: scale(1.05); }
+        }
+        
+        /* Mini historial casi invisible */
+        #mini-history {
+            color: rgba(0, 200, 255, 0.3);
+            font-size: 12px;
+            max-height: 100px;
+            overflow-y: auto;
+            width: 80%;
+            text-align: center;
+            margin: 10px 0;
+            transition: all 0.3s;
+            scrollbar-width: none; /* Ocultar scrollbar */
+        }
+        
+        #mini-history::-webkit-scrollbar {
+            display: none;
+        }
+        
+        #mini-history:hover {
+            color: rgba(0, 200, 255, 0.7);
+        }
+        
+        /* Input minimalista */
+        .input-container {
+            display: flex;
+            gap: 10px;
+            width: 80%;
+            margin-top: 20px;
+        }
+        
+        #user-input {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border-radius: 25px;
+            border: 1px solid rgba(0, 100, 255, 0.3);
+            background-color: rgba(0, 20, 50, 0.2);
+            color: #0af;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        #user-input:focus {
+            border-color: #00f;
+            box-shadow: 0 0 10px rgba(0, 100, 255, 0.5);
+        }
+        
+        #send-button {
+            padding: 10px 20px;
+            border-radius: 25px;
+            background-color: rgba(0, 100, 255, 0.3);
+            color: #0af;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        #send-button:hover {
+            background-color: rgba(0, 100, 255, 0.5);
+        }
+        
+        #send-button:disabled {
+            opacity: 0.5;
+        }
+        
+        /* Efectos de ondas */
+        .asistente.hablando::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 170, 255, 0.6);
+            animation: onda 2s infinite;
+            opacity: 0;
+        }
+        
+        @keyframes onda {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="asistente"></div>
+        <div id="mini-history"></div>
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Habla con JARVIS...">
+            <button id="send-button">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('send-button').addEventListener('click', sendMessage);
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('user-input');
+            const button = document.getElementById('send-button');
+            const asistente = document.querySelector('.asistente');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            button.disabled = true;
+            button.textContent = "...";
+            
+            // Mostrar mensaje miniaturizado
+            const miniHistory = document.getElementById('mini-history');
+            miniHistory.innerHTML += `> ${message}<br>`;
+            miniHistory.scrollTop = miniHistory.scrollHeight;
+            input.value = '';
+
+            // Limpiar animación previa
+            asistente.classList.remove('hablando');
+            void asistente.offsetWidth; // Reiniciar animación
+            
+            fetch('http://localhost:5000/consultar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensaje: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    miniHistory.innerHTML += `ERROR: ${data.error}<br>`;
+                    return;
+                }
+                
+                miniHistory.innerHTML += `JARVIS: ${data.texto}<br>`;
+                
+                if (data.audio) {
+                    const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
+                    
+                    audio.onplay = () => {
+                        asistente.classList.add('hablando');
+                    };
+                    
+                    audio.onended = () => {
+                        asistente.classList.remove('hablando');
+                    };
+                    
+                    audio.play().catch(e => {
+                        console.error("Error al reproducir:", e);
+                    });
+                }
+                
+                miniHistory.scrollTop = miniHistory.scrollHeight;
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.textContent = "Enviar";
+            });
+        }
+    </script>
+</body>
+</html>
